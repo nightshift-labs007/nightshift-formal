@@ -1,0 +1,22 @@
+name: re-check proofs
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Install Lean (elan)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Download Mathlib cache
+        run: lake exe cache get
+      - name: Build (Lean's kernel checks every proof)
+        run: lake build
+      - name: Axioms used by each theorem
+        run: lake env lean Nightshift/Audit.lean | tee audit.txt | node check-axioms.mjs
+      - name: Manifest and Algorand fingerprint
+        run: node verify-manifest.mjs
